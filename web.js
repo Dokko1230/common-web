@@ -1,6 +1,11 @@
 (function (undefined) {
   var tail,
       hasModule = (typeof module !== 'undefined' && module.exports),
+      globals = {
+        click: {
+
+        }
+      }
       globalProps = {
         page_url: window.location.href,
         referrer_url: document.referrer
@@ -58,7 +63,12 @@
         obj[attr.nodeName] = attr.value;
       });
 
-      obj.classes = element.class;
+      obj.timestamp = event.timestamp;
+      obj.type = event.type;
+      obj.metaKey = event.metaKey;
+      debugger;
+
+      obj.classes = element.classList;
       obj.path = getPath.call(element);
 
       switch(event.type) {
