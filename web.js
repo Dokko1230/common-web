@@ -14,7 +14,7 @@
   function Tail(query) {
     this._queue = [];
     this._elements = document.querySelectorAll(query);
-  };
+  }
 
   /************************************
       Tail Prototype
@@ -27,7 +27,7 @@
     track : function (properties) {
       each(this._elements, function (node, i) {
         node.addEventListener(this._eventType, function(event) {
-          var obj = this._package(event, properties);
+          var obj = this._package(event, properties, node);
 
           // this._queue.push(obj);
           this._addEvent(obj);
@@ -46,12 +46,26 @@
      * @param  {[type]} properties [description]
      * @return {[object]}            
      */
-    _package : function (event, properties) {
+    _package : function (event, properties, element) {
       var obj = {};
-      debugger;
+      obj.tagName = element.tagName;
+      // add the inner text for some tag types
+      if (element.tagName === 'A') {
+        obj.text = element.innerText;
+      }
+      // add each attribute
+      each(element.attributes, function (index, attr) {
+        obj[attr.nodeName] = attr.value;
+      });
+
+      obj.classes = element.class;
+      obj.path = getPath.call(element);
+
       switch(event.type) {
         case 'click':
+          extend(obj, globals.click);
 
+          break;
       }
 
       each(properties, function (prop) {
@@ -59,6 +73,7 @@
           obj[prop] = event[prop];
         }
       });
+      debugger;
       return obj;
     },
 
@@ -127,6 +142,38 @@
 
   function isMetaKey(event) {
     return event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
+  }
+
+  /**
+   * Gets the path
+   * Used with the context of the current node.
+   * @param  {[type]} path [description]
+   * @return {[type]}      [description]
+   */
+  function getPath (path) {
+    if ( typeof path == 'undefined' ) path = '';
+
+    // If this element is <html> we've reached the end of the path.
+    if ( this.localName === 'html' )
+      return 'html' + path;
+
+    // Add the element name.
+    var cur = this.nodeName.toLowerCase();
+
+    // Determine the IDs and path.
+    var id    = this.id,
+        klass = this.classList;
+
+    // Add the #id if there is one.
+    if ( typeof id !== 'undefined' )
+      cur += '#' + id;
+
+    // Add any classes.
+    if ( typeof klass !== 'undefined' )
+      cur += '.' + Array.prototype.join.call(klass, '.');
+
+    // Recurse up the DOM.
+    return getPath.call(this.parentNode, ' > ' + cur + path);
   }
 
   this['tail'] = tail;
