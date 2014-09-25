@@ -79,7 +79,6 @@ tail(document.getElementById('purchase'))
   }) // Do data manipulations here
   .hook({
       initialize: function() {
-        // Should return the client of whatever you're pushing shit with is
         var client = new Keen({
           projectId: "541c624f7d8cb9208a59fe91",
           writeKey: "734dea987282e4b08a37ecb6bed439274fb821de5816b507f7b24ad224b16a2551100ed67e3116501001acf1be51dc62500afcba8bccc5d3e4617419a272274da9fb3e7f6e171cb3341b3f9a2526ceb2c7a23f14eec62691e32dc26d4e5b835ad4586a4344012af7c9f817539d837c7e"
