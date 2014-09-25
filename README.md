@@ -63,48 +63,158 @@ Make sure to change `/javascripts/common-web.js` if that's not where the file is
 
 ##### Dependencies
 
-+ [jQuery](http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js) – Required. Someday this may change, but for now jQuery is required.
-+ Keen IO [JS SDK v3](http://d26b395fwzu5fz.cloudfront.net/3.0.7/keen.min.js) - Required if you're using Keen as a backend for the JSON data captured.
-
-Include dependencies before including `common-web.js` itself. For example, here's how you'd include both jQuery and Keen IO:
-
-``` html
-<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<script src="//d26b395fwzu5fz.cloudfront.net/3.0.7/keen.min.js"></script>
-<script type="text/javascript" src="common-web.js"></script>
-```
-
-If you're using the Keen IO backend, you'll need to tell CommonWeb about the `Keen.Client` instance
-you'd like it to use to record events and tell it to use the `CommonWeb.Keen` callback:
-
-``` javascript
-CommonWeb.Keen.Client = new Keen({
-  projectId: "your_project_id",
-  writeKey: "your_write_key"
-});
-CommonWeb.addGlobalProperties(CommonWeb.Keen.globalProperties);
-CommonWeb.Callback = CommonWeb.Keen.Callback;
-```
+CommonWeb has no dependencies. It's a plug and play system where you pick your favorite backend, may it be [keen](http://keen.io), [firebase](http://firebase.com), [parse](http://parse.com), or custom!
 
 ### Usage
 
-After all of the required JavaScript has been loaded, you can begin making calls to the `CommonWeb` object.
+CommonWeb is designed in a way that is chainable and easily configurable.
+```js
+tail(document.getElementById('purchase'))
+  .on('click')
+  .track(['classname', 'id', 'x', 'y'])
+  .data(function(data) {
+    return data.map(function(item) {
+      return $.extend(item, { extra : 'property' });
+    });
+  }) // Do data manipulations here
+  .hook({
+      initialize: function() {
+        // Should return the client of whatever you're pushing shit with is
+        var client = new Keen({
+          projectId: "541c624f7d8cb9208a59fe91",
+          writeKey: "734dea987282e4b08a37ecb6bed439274fb821de5816b507f7b24ad224b16a2551100ed67e3116501001acf1be51dc62500afcba8bccc5d3e4617419a272274da9fb3e7f6e171cb3341b3f9a2526ceb2c7a23f14eec62691e32dc26d4e5b835ad4586a4344012af7c9f817539d837c7e"
+        });
+        return client;
+      },
+      methodMap: {
+        add: {
+          name: 'addEvent',
+          parameters: ['title', 'obj']
+        }
+      }
+  })
+  .onPost(function() {
+    console.log('success');
+  })
+```
 
-The CommonWeb API contains several `trackXXX` methods that initialize tracking for pageviews or events on specific HTML elements.
-Here's an example of each:
+### API
 
-``` javascript
-// track the pageview
-CommonWeb.trackPageview();
+##### CommonWeb([DOMNode])
+*Creates an instance of CommonWeb.*
+```js
+var web = CommonWeb(document.getElementById('true_price'));
+```
 
-// track clicks for each link on the page
-CommonWeb.trackClicks();
+##### .global([object (optional) properties])
+*Gets or sets the global properties. If the properties parameter does not exists, CW gets all global properties.The default data model used to represent events is described in another section below. Sometimes you may need to include more properties. For example, maybe you need to include extra user properties that allow for further segmenting analysis down the road.*
+```js
+// getter
+var globals = web.global();
+// setter
+web.global({
+  useragent: 'a sample user agent',
+  username: 'John Ford'
+});
+```
 
-// track submissions for every form on the page
-CommonWeb.trackFormSubmissions();
 
-// track clicks for non-link tags on the page, requires argument
-CommonWeb.trackClicksPassive($("span"));
+##### .on([string eventType])
+*Specifies the type of event that an element should be listening to.Specifies CW to listen to the node on click. This is true to any event type that can be applied to *addEventListener* api. See [here](http://en.wikipedia.org/wiki/DOM_events#Touch_events) for more.*
+```js
+web.on('click');
+```
+
+##### .track([array properties], [boolean isPassive = false])
+*Starts tracking the items. Defaults to the page when eventType is not speificied. isPassive is false by default. See [Blocking vs. Non-Blocking](#Blocking vs. Non-Blocking) for more details.*
+```js
+web.track(['x', 'y', 'timestamp', 'classList'])
+web.track(['x','width'], true);
+```
+
+##### .limitTo([number])
+*Limits the number of items to track.*
+```js
+web.limitTo(4)
+```
+
+##### .groupBy([string eventType])
+*Groups the events to be stored by a property in the event*
+```js
+web.groupBy('className');
+```
+
+##### .data([function fn])
+*Tinker with the object to be passed to the server. Acts as middleware for the data*
+```js
+web.data(function(eventObject) {
+  eventObject.whoohoo = 'more properties to be added';
+  eventObject.username = `this is actually useful guys`;
+});
+```
+
+##### .hook([object hooker])
+*The hook method is the configuration for the backend of your choosing.*
+```js
+// Hook for keen-js
+web.hook({
+  // function must return the instance of the db client, that has the method to push data
+  initialize: function() {
+    var client = new Keen({
+      projectId: "541c624f7d8cb9208a59fe91",
+      writeKey: "734dea987282e4b08a37ecb6bed439274fb821de5816b507f7b24ad224b16a2551100ed67e3116501001acf1be51dc62500afcba8bccc5d3e4617419a272274da9fb3e7f6e171cb3341b3f9a2526ceb2c7a23f14eec62691e32dc26d4e5b835ad4586a4344012af7c9f817539d837c7e"
+    });
+    return client;
+  },
+  // map for the adding command
+  methodMap: {
+    add: {
+      name: 'addEvent',
+      parameters: ['title', 'obj']
+    }
+  }
+});
+```
+You can also hook into multiple backends!
+
+```js
+web
+  .hook({
+    initialize: function() {
+      return new Firebase(/* url */);
+    },
+    methodMap: {
+      add: {
+        name: 'set'
+      }
+    }
+  })
+  .hook({
+    initialize: function() {
+      return new keen(/* configs */);
+    },
+    methodMap: {
+      add: {
+        name: addEvent
+      }
+    }
+  });
+```
+
+##### .onPost([function fn])
+*The callback function to be invoked on post*
+```js
+web.onPost(function(status) {
+  // Do magic here
+});
+```
+
+##### .error([function fn])
+*Invoked on error*
+```js
+web.error(function(err) {
+  console.log('Error: ', err);
+});
 ```
 
 ### Blocking vs. Non-Blocking
@@ -118,33 +228,28 @@ CommonWeb's solution is to have you specify explicitly when to work around this 
 tell CommonWeb what links / forms are going to unload the page. In that case CommonWeb will prevent the default
 browser action, record the event with the backend, and then re-initiate the action.
 
-The methods that alter default behavior. Here they are:
-
-+ `trackClicks`
-+ `trackFormSubmissions`
-
-These methods are more passive, and don't interrupt any normal event flow:
-
-+ `trackClicksPassive`
-+ `trackFormSubmissionsPassive` (coming soon)
-
 ### Specify HTML Elements (Recommended)
 
 If you only want certain elements tracked, pass them in as the first argument to the track methods:
 
 ```javascript
 // track clicks on the nav
-CommonWeb.trackClicks($(".nav a");
+CommonWeb(document.querySelectorAll('.nav a'));
 
 // track clicks with a specific attribute
-CommonWeb.trackClicks($("a[data-track=true]");
+CommonWeb.trackClicks(document.querySelectorAll('a[data-track=true]');
 ```
 
 The same arguments work for tracking non-link-clicks and forms:
 
 ```javascript
-CommonWeb.trackClicksPassive($("span.less"));
-CommonWeb.trackFormSubmissions($("form"));
+CommonWeb(document.querySelectorAll('span.less'))
+          .on('hover')
+          .track(['someAttribute']);
+
+CommonWeb(document.querySelectorAll('form'))
+          .on('submit')
+          .track(['value']);
 ```
 
 ##### Words of Caution
@@ -157,58 +262,10 @@ over grabbing everything.
 
 And be careful not to wire up the same element twice!
 
-### Specify Additional Properties
-
-The default data model used to represent events is described in another section below. Sometimes you may
-need to include more properties. For example, maybe you need to include extra user properties that allow for
-further segmenting analysis down the road.
-
-This can be done at a global level or for specific elements passed into `track` calls.
-
-Here's how to add global properties that will be merged into each captured event on the page:
-
-``` javascript
-CommonWeb.addGlobalProperties({
-  experiment: {
-    id: 13983,
-    variant: "A"
-  }
-});
-```
-
-Here's how to specific properties that will only be added to a specific element's click:
-
-```javascript
-CommonWeb.trackClicks($("span.less"), { another: "property" );
-```
-
-You can also pass a function to compute properties lazily at the time of the event:
-
-```javascript
-CommonWeb.trackClicksPassive($("span.even-more-stuff"), function(event, element) {
-    return {
-        event: { clientX : event.clientX },
-        element: { tagNameAgain : element.tagName  }
-    };
-});
-```
-
-### Custom Backend
-
-Eventually multiple backends will be supported, but for now a Backend is just a function and you
-can specify your own just like this:
-
-```javascript
-CommonWeb.Callback = function(collection, properties, callback) {
-  // do something with the event here!
-};
-```
-
 ### Data Model - Event Types
 
 CommonWeb identifies several event types based on the interaction
-- `pageviews`, `clicks`, `form-submissions`. The event type is added to the JSON
-payload that represents each event so it can be used in analysis.
+- `pageviews`, `clicks`, `form-submissions`. The event type is added to the JSON payload that represents each event so it can be used in analysis.
 
 ### Data Model - Event Properties
 

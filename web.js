@@ -12,13 +12,13 @@
       };
 
   // create a common namespace with options
-  tail = function(query) {
-    return new Tail(query);
+  tail = function(nodes) {
+    return new Tail(nodes);
   };
 
-  function Tail(query) {
+  function Tail(nodes) {
     this._queue = [];
-    this._elements = document.querySelectorAll(query);
+    this._elements = nodes;
   }
 
   /************************************
@@ -66,7 +66,6 @@
       obj.timestamp = event.timestamp;
       obj.type = event.type;
       obj.metaKey = event.metaKey;
-      debugger;
 
       obj.classes = element.classList;
       obj.path = getPath.call(element);
@@ -83,7 +82,7 @@
           obj[prop] = event[prop];
         }
       });
-      debugger;
+
       return obj;
     },
 
@@ -115,7 +114,6 @@
       //this.addEvent('shit', {});
       //this.set({});
       //this.addEvent('shit', {});
-      debugger;
       this._vessel[this._methodMap.add.name](this._eventType, obj);
     }
 

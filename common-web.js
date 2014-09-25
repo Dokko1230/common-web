@@ -209,6 +209,7 @@
 
   function toProperties(propertiesOrFunction, args) {
     if (typeof propertiesOrFunction === 'function') {
+      debugger;
       return propertiesOrFunction.apply(window, args);
     } else {
       return propertiesOrFunction
